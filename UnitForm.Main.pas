@@ -24,6 +24,9 @@ type
     CheckBox2: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure lsvMainListShowDblClick(Sender: TObject);
+    procedure lsvMainListShowColumnClick(Sender: TObject; Column: TListColumn);
+    procedure lsvMainListShowCompare(Sender: TObject; Item1, Item2: TListItem;
+      Data: Integer; var Compare: Integer);
   private
     { Private declarations }
   public
@@ -34,6 +37,10 @@ var
   MainForm: TMainForm;
 
 implementation
+
+var
+  SortedColumn: Integer = 0;
+  UseDescending: Boolean = false;
 
 {$R *.dfm}
 
@@ -108,6 +115,33 @@ begin
 
   // InputBox('标题', '提示信息', '默认值');
   // ShowMessage(output);
+end;
+
+procedure TMainForm.lsvMainListShowColumnClick(Sender: TObject;
+  Column: TListColumn);
+begin
+
+  SortedColumn := Column.Index;
+
+  (Sender as TListView).CustomSort(nil, SortedColumn);
+
+  UseDescending := not UseDescending;
+
+end;
+
+procedure TMainForm.lsvMainListShowCompare(Sender: TObject;
+  Item1, Item2: TListItem; Data: Integer; var Compare: Integer);
+begin
+
+  if SortedColumn = 0 then
+    Compare := AnsiCompareText(Item1.Caption, Item2.Caption)
+  else if SortedColumn <> 0 then
+    Compare := AnsiCompareText(Item1.SubItems[SortedColumn - 1],
+      Item2.SubItems[SortedColumn - 1]);
+
+  if UseDescending then
+    Compare := -Compare;
+
 end;
 
 procedure TMainForm.lsvMainListShowDblClick(Sender: TObject);

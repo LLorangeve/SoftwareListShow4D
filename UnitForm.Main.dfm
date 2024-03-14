@@ -57,8 +57,6 @@ object MainForm: TMainForm
       Width = 97
       Height = 17
       Caption = 'chkWinSysSw'
-      Checked = True
-      State = cbChecked
       TabOrder = 3
     end
     object CheckBox2: TCheckBox
@@ -103,10 +101,12 @@ object MainForm: TMainForm
       end>
     FlatScrollBars = True
     StyleName = 'Windows'
+    ReadOnly = True
     RowSelect = True
-    SortType = stText
     TabOrder = 1
     ViewStyle = vsReport
+    OnColumnClick = lsvMainListShowColumnClick
+    OnCompare = lsvMainListShowCompare
     OnDblClick = lsvMainListShowDblClick
   end
   object StatusBar1: TStatusBar
@@ -115,5 +115,6 @@ object MainForm: TMainForm
     Width = 673
     Height = 19
     Panels = <>
+    SimplePanel = True
   end
 end
