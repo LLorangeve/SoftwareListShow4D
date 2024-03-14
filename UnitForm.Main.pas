@@ -5,9 +5,10 @@ interface
 uses
   System.Generics.Collections,
   System.RegularExpressions,
-  System.Win.Registry, Winapi.Windows, Winapi.Messages, System.SysUtils,
-  System.Variants,
-  System.Classes, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics,
+  System.Win.Registry, Winapi.Windows,
+  Winapi.Messages, System.SysUtils,
+  System.Variants, System.Classes,
+  Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls,
   UnitFrom.Dialog.RegKeyInfos;
 
@@ -19,6 +20,8 @@ type
     btnExeQuery: TButton;
     btnClear: TButton;
     StatusBar1: TStatusBar;
+    chkWinSysSw: TCheckBox;
+    CheckBox2: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure lsvMainListShowDblClick(Sender: TObject);
   private
@@ -66,11 +69,18 @@ begin
             continue;
 
           if ValueExists('DisplayName') then
+          begin
+            regkeyFDisplayName := ReadString('DisplayName');
+
+            if chkWinSysSw.Checked then
+              if regkeyFDisplayName.StartsWith('vs_') then
+                continue;
+
+            if regkeyFDisplayName.Trim = string.Empty then
+              continue;
+
             with lsvMainListShow.Items.Add do
             begin
-              regkeyFDisplayName := ReadString('DisplayName');
-              if regkeyFDisplayName.Trim = string.Empty then
-                continue;
               { 显示名 } Caption := regkeyFDisplayName;
               { 发布者 } SubItems.Add(ReadString('Publisher'));
               { 软件版本 } SubItems.Add(ReadString('DisplayVersion'));
@@ -87,6 +97,8 @@ begin
               { 卸载字符串 } SubItems.Add(ReadString('UninstallString'));
               { 注册表路径 } SubItems.Add(ragpath + '\' + keyname);
             end;
+          end;
+
         end;
 
       finally

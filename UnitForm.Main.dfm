@@ -51,6 +51,24 @@ object MainForm: TMainForm
       Caption = #28165#29702
       TabOrder = 2
     end
+    object chkWinSysSw: TCheckBox
+      Left = 387
+      Top = 3
+      Width = 97
+      Height = 17
+      Caption = 'chkWinSysSw'
+      Checked = True
+      State = cbChecked
+      TabOrder = 3
+    end
+    object CheckBox2: TCheckBox
+      Left = 484
+      Top = 3
+      Width = 97
+      Height = 17
+      Caption = 'CheckBox2'
+      TabOrder = 4
+    end
   end
   object lsvMainListShow: TListView
     Left = 0
