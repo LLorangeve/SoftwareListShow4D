@@ -232,6 +232,7 @@ var
   oldRegKVPairs: TList<TregPair>;
   newRegKVPairs: TList<TregPair>;
 begin
+  newRegKVPairs := nil;
   if Trim(edtInput.Text).IsEmpty then
     oldRegKVPairs := RegKVPairs
   else
