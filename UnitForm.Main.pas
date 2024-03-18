@@ -23,6 +23,7 @@ type
     edtInput: TEdit;
     chkRegHKCU: TCheckBox;
     chkRegHKLM: TCheckBox;
+    btnExportCSV: TButton;
     procedure lsvMainListShowDblClick(Sender: TObject);
     procedure lsvMainListShowColumnClick(Sender: TObject; Column: TListColumn);
     procedure lsvMainListShowCompare(Sender: TObject; Item1, Item2: TListItem;
@@ -51,9 +52,21 @@ type
 
 var
   UseDescending: boolean = false;
+  SortColumn: Integer = -1;
   RegKVPairs: TList<TregPair>;
+  RegKVPairsWhereShow: TList<TregPair>;
 
   { procedrue and function private on implementation }
+
+function TestWinSysSw(x: TregPair): boolean;
+begin
+  if x['DisplayName'].StartsWith('vs_') //
+    or x['DisplayName'].StartsWith('icecap_') //
+    or x['DisplayName'].StartsWith('vcpp_') then
+    Result := false
+  else
+    Result := true;
+end;
 
 procedure GetUninstallRegistrys(out RegKVPairs: TList<TregPair>);
 var
@@ -66,6 +79,8 @@ var
   regkeyFDisplayName: string;
 
   regKVPair: TDictionary<string, string>;
+  ragpaths: array of string;
+  regacc: HKEY;
 
 begin
   ragpath := 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall';
@@ -76,62 +91,65 @@ begin
   RegKVPairs := TList<TregPair>.Create;
 
   for keyrootI in [HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER] do
-    with TRegistry.Create do
-      try
-        Access := KEY_READ;
-        RootKey := keyrootI;
-        OpenKeyReadOnly(ragpath);
+    for regacc in [KEY_ALL_ACCESS or KEY_WOW64_32KEY, KEY_ALL_ACCESS or
+      KEY_WOW64_64KEY] do
+      with TRegistry.Create do
+        try
+          Access := regacc;
+          RootKey := keyrootI;
 
-        GetKeyNames(RegKeyNames);
-        for keyname in RegKeyNames do
-        begin
-          CloseKey;
+          OpenKeyReadOnly(ragpath);
+          GetKeyNames(RegKeyNames);
 
-          if not OpenKeyReadOnly(ragpath + '\' + keyname) then
-            continue;
-
-          if ValueExists('DisplayName') then
+          for keyname in RegKeyNames do
           begin
-            regkeyFDisplayName := ReadString('DisplayName');
-
-            if regkeyFDisplayName.Trim = string.Empty then
+            CloseKey;
+            if not OpenKeyReadOnly(ragpath + '\' + keyname) then
               continue;
 
-            regKVPair := TDictionary<string, string>.Create;
-            with regKVPair do
+            if ValueExists('DisplayName') then
             begin
+              regkeyFDisplayName := ReadString('DisplayName');
 
-              { 显示名 } add('DisplayName', ReadString('DisplayName'));
-              { 发布者 } add('Publisher', ReadString('Publisher'));
-              { 软件版本 } add('DisplayVersion', ReadString('DisplayVersion'));
-              { 安装时间 } regkeyFInstallDate := ReadString('InstallDate').Trim;
-              with rgxMatchInstallDate.Match(regkeyFInstallDate) do
-                if Success then
-                  add('InstallDate', Format('%s年%s月%s日', [
-                    { 年 } Groups[1].Value,
-                    { 月 } Groups[2].Value,
-                    { 日 } Groups[3].Value]))
-                else
-                  add('InstallDate', regkeyFInstallDate);
-              { 卸载字符串 } add('UninstallString', ReadString('UninstallString'));
-              { 注册表路径 }
-              case keyrootI of
-                HKEY_CURRENT_USER:
-                  add('RegistryPath', Format('HKCU\%s\%s', [ragpath, keyname]));
-                HKEY_LOCAL_MACHINE:
-                  add('RegistryPath', Format('HKLM\%s\%s', [ragpath, keyname]));
+              if regkeyFDisplayName.Trim = string.Empty then
+                continue;
+
+              regKVPair := TDictionary<string, string>.Create;
+              with regKVPair do
+              begin
+                // Assert(not ReadString('DisplayName').Contains('火绒'));
+                { 显示名 } add('DisplayName', ReadString('DisplayName'));
+                { 发布者 } add('Publisher', ReadString('Publisher'));
+                { 软件版本 } add('DisplayVersion', ReadString('DisplayVersion'));
+                { 安装时间 } regkeyFInstallDate := ReadString('InstallDate').Trim;
+                with rgxMatchInstallDate.Match(regkeyFInstallDate) do
+                  if Success then
+                    add('InstallDate', Format('%s年%s月%s日', [
+                      { 年 } Groups[1].Value,
+                      { 月 } Groups[2].Value,
+                      { 日 } Groups[3].Value]))
+                  else
+                    add('InstallDate', regkeyFInstallDate);
+                { 卸载字符串 } add('UninstallString', ReadString('UninstallString'));
+                { 注册表路径 }
+                case keyrootI of
+                  HKEY_CURRENT_USER:
+                    add('RegistryPath', Format('HKCU\%s\%s',
+                      [ragpath, keyname]));
+                  HKEY_LOCAL_MACHINE:
+                    add('RegistryPath', Format('HKLM\%s\%s',
+                      [ragpath, keyname]));
+                end;
+
               end;
-
+              RegKVPairs.add(regKVPair);
             end;
-            RegKVPairs.add(regKVPair);
           end;
 
+        finally
+          CloseKey;
+          Free;
         end;
-
-      finally
-        CloseKey;
-        Free;
-      end;
 end;
 
 procedure FilterUninstallRegistrys(oldRegList: TList<TregPair>;
@@ -153,7 +171,7 @@ var
   kvpair: TregPair;
   i: Integer;
 begin
-
+  UseDescending := false;
   aListView.Items.BeginUpdate;
   aListView.Clear;
 
@@ -171,55 +189,131 @@ begin
   aListView.Items.EndUpdate;
 end;
 
+procedure TMainForm.chkWinSysSwClick(Sender: TObject);
+var
+  oldRegKVPairs: TList<TregPair>;
+  newRegKVPairs: TList<TregPair>;
+begin
+  if Trim(edtInput.Text).IsEmpty then
+    oldRegKVPairs := RegKVPairs
+  else
+    FilterUninstallRegistrys(RegKVPairs, oldRegKVPairs,
+      function(x: TregPair): boolean
+      begin
+        if x['DisplayName'].ToLower.Contains(LowerCase(edtInput.Text).Trim) then
+          Result := true
+        else
+          Result := false
+      end);
+
+  with Sender as TCheckBox do
+    if Checked then
+    begin
+      FilterUninstallRegistrys(oldRegKVPairs, newRegKVPairs, TestWinSysSw);
+      RegKVPairsWhereShow := newRegKVPairs;
+    end
+    else
+    begin
+      newRegKVPairs := oldRegKVPairs;
+      RegKVPairsWhereShow := RegKVPairs;
+    end;
+
+  if SortColumn <> -1 then
+    lsvMainListShow.CustomSort(nil, SortColumn);
+
+  if Assigned(newRegKVPairs) then
+    RefreshListViewShoW(lsvMainListShow, newRegKVPairs);
+
+  stuMainBar.SimpleText := Format('Total: %d', [lsvMainListShow.Items.Count]);
+end;
+
+procedure TMainForm.chkHKCU_HKLM_Click(Sender: TObject);
+var
+  oldRegKVPairs: TList<TregPair>;
+  newRegKVPairs: TList<TregPair>;
+begin
+  if Trim(edtInput.Text).IsEmpty then
+    oldRegKVPairs := RegKVPairs
+  else
+    FilterUninstallRegistrys(RegKVPairs, oldRegKVPairs,
+      function(x: TregPair): boolean
+      begin
+        if x['DisplayName'].ToLower.Contains(LowerCase(edtInput.Text).Trim) then
+          Result := true
+        else
+          Result := false
+      end);
+
+  if not chkRegHKCU.Checked and chkRegHKLM.Checked then
+  begin
+    FilterUninstallRegistrys(oldRegKVPairs, newRegKVPairs,
+      function(x: TregPair): boolean
+      begin
+        if x['RegistryPath'].StartsWith('HKCU') then
+          Result := false
+        else
+          Result := true;
+      end);
+    RegKVPairsWhereShow := newRegKVPairs;
+  end
+  else if chkRegHKCU.Checked and not chkRegHKLM.Checked then
+  begin
+    FilterUninstallRegistrys(oldRegKVPairs, newRegKVPairs,
+      function(x: TregPair): boolean
+      begin
+        if x['RegistryPath'].StartsWith('HKLM') then
+          Result := false
+        else
+          Result := true;
+      end);
+    RegKVPairsWhereShow := newRegKVPairs;
+  end
+  else if chkRegHKCU.Checked and chkRegHKLM.Checked then
+  begin
+    newRegKVPairs := oldRegKVPairs;
+    RegKVPairsWhereShow := RegKVPairs;
+  end
+  else
+    lsvMainListShow.Clear;
+
+  if SortColumn <> -1 then
+    lsvMainListShow.CustomSort(nil, SortColumn);
+
+  if Assigned(newRegKVPairs) then
+    RefreshListViewShoW(lsvMainListShow, newRegKVPairs);
+
+  stuMainBar.SimpleText := Format('Total: %d', [lsvMainListShow.Items.Count]);
+end;
+
 procedure TMainForm.btnExeQueryClick(Sender: TObject);
 var
   newRegKVPairs: TList<TregPair>;
 begin
   if string(edtInput.Text).Trim.IsEmpty then
   begin
-    RefreshListViewShoW(lsvMainListShow, RegKVPairs);
+    RefreshListViewShoW(lsvMainListShow, RegKVPairsWhereShow);
+    stuMainBar.SimpleText := Format('Total: %d', [lsvMainListShow.Items.Count]);
     exit;
   end;
 
-  FilterUninstallRegistrys(RegKVPairs, newRegKVPairs,
+  FilterUninstallRegistrys(RegKVPairsWhereShow, newRegKVPairs,
     function(x: TregPair): boolean
     begin
-      if LowerCase(x['DisplayName']).Contains(LowerCase(edtInput.Text).Trim)
-      then
+      if x['DisplayName'].ToLower.Contains(LowerCase(edtInput.Text).Trim) then
         Result := true
       else
         Result := false;
     end);
-  RefreshListViewShoW(lsvMainListShow, newRegKVPairs)
+
+  RefreshListViewShoW(lsvMainListShow, newRegKVPairs);
+  if SortColumn <> -1 then
+    lsvMainListShow.CustomSort(nil, SortColumn);
 end;
 
 procedure TMainForm.btnClearClick(Sender: TObject);
 begin
   edtInput.Clear;
   RefreshListViewShoW(lsvMainListShow, RegKVPairs);
-end;
-
-procedure TMainForm.chkWinSysSwClick(Sender: TObject);
-var
-  newRegKVPairs: TList<TregPair>;
-begin
-  with Sender as TCheckBox do
-    if Checked then
-    begin
-      FilterUninstallRegistrys(RegKVPairs, newRegKVPairs,
-        function(x: TregPair): boolean
-        begin
-          if x['DisplayName'].StartsWith('vs_') //
-            or x['DisplayName'].StartsWith('icecap_') //
-            or x['DisplayName'].StartsWith('vcpp_') then
-            Result := false
-          else
-            Result := true;
-        end);
-      RefreshListViewShoW(lsvMainListShow, newRegKVPairs);
-    end
-    else
-      RefreshListViewShoW(lsvMainListShow, RegKVPairs);
 end;
 
 procedure TMainForm.edtInputKeyPress(Sender: TObject; var Key: Char);
@@ -232,9 +326,14 @@ begin
 end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
+var
+  newRegKVPairs: TList<TregPair>;
 begin
   GetUninstallRegistrys(RegKVPairs);
-  RefreshListViewShoW(lsvMainListShow, RegKVPairs)
+  FilterUninstallRegistrys(RegKVPairs, newRegKVPairs, TestWinSysSw);
+  RegKVPairsWhereShow := newRegKVPairs;
+  RefreshListViewShoW(lsvMainListShow, RegKVPairsWhereShow);
+  stuMainBar.SimpleText := Format('Total: %d', [lsvMainListShow.Items.Count]);
 end;
 
 procedure TMainForm.lsvMainListShowColumnClick(Sender: TObject;
@@ -243,6 +342,7 @@ begin
 
   (Sender as TListView).CustomSort(nil, Column.Index);
 
+  SortColumn := Column.Index;
   UseDescending := not UseDescending;
 
 end;
@@ -270,41 +370,6 @@ begin
         Free
       end;
   end;
-end;
-
-procedure TMainForm.chkHKCU_HKLM_Click(Sender: TObject);
-var
-  newRegKVPairs: TList<TregPair>;
-begin
-
-  if not chkRegHKCU.Checked and chkRegHKLM.Checked then
-  begin
-    FilterUninstallRegistrys(RegKVPairs, newRegKVPairs,
-      function(x: TregPair): boolean
-      begin
-        if x['RegistryPath'].StartsWith('HKCU') then
-          Result := false
-        else
-          Result := true;
-      end);
-    RefreshListViewShoW(lsvMainListShow, newRegKVPairs);
-  end
-  else if chkRegHKCU.Checked and not chkRegHKLM.Checked then
-  begin
-    FilterUninstallRegistrys(RegKVPairs, newRegKVPairs,
-      function(x: TregPair): boolean
-      begin
-        if x['RegistryPath'].StartsWith('HKLM') then
-          Result := false
-        else
-          Result := true;
-      end);
-    RefreshListViewShoW(lsvMainListShow, newRegKVPairs);
-  end
-  else if chkRegHKCU.Checked and chkRegHKLM.Checked then
-    RefreshListViewShoW(lsvMainListShow, RegKVPairs)
-  else
-    lsvMainListShow.Clear;
 end;
 
 procedure TMainForm.lsvMainListShowCompare(Sender: TObject;
