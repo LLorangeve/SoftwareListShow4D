@@ -24,6 +24,7 @@ type
     chkRegHKCU: TCheckBox;
     chkRegHKLM: TCheckBox;
     btnExportCSV: TButton;
+    dlgSaveExport: TSaveDialog;
     procedure lsvMainListShowDblClick(Sender: TObject);
     procedure lsvMainListShowColumnClick(Sender: TObject; Column: TListColumn);
     procedure lsvMainListShowCompare(Sender: TObject; Item1, Item2: TListItem;
@@ -34,6 +35,7 @@ type
     procedure chkHKCU_HKLM_Click(Sender: TObject);
     procedure btnExeQueryClick(Sender: TObject);
     procedure edtInputKeyPress(Sender: TObject; var Key: Char);
+    procedure btnExportCSVClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -68,6 +70,52 @@ begin
     Result := true;
 end;
 
+function StdCSVFormat(aCSVItem: string): string;
+begin
+  Result := aCSVItem;
+
+  if Pos('"', aCSVItem) > 0 then
+    Result := Format('"%s"', [aCSVItem.Replace('"', '""')])
+  else if Pos(',', aCSVItem) > 0 then
+    Result := Format('"%s"', [aCSVItem]);
+end;
+
+procedure WriteCSVFile(FileName: string; aEncoding: TEncoding);
+var
+  fs: TFileStream;
+  keyrec: TregPair;
+  slbuf: TStringList;
+  i: Integer;
+begin
+
+  slbuf := TStringList.Create;
+  slbuf.Add(Format('%s,%s,%s,%s,%s', ['显示名', '发布者', '软件版本', '安装时间', '卸载字符串',
+    '注册表路径']));
+
+  for keyrec in RegKVPairs do
+  begin
+    slbuf.Add(Format('%s,%s,%s,%s,%s', [
+      { } StdCSVFormat(keyrec['DisplayName']),
+      { } StdCSVFormat(keyrec['Publisher']),
+      { } StdCSVFormat(keyrec['DisplayVersion']),
+      { } StdCSVFormat(keyrec['InstallDate']),
+      { } StdCSVFormat(keyrec['UninstallString']),
+      { } StdCSVFormat(keyrec['RegistryPath'])]));
+  end;
+
+  fs := TFileStream.Create(FileName, fmCreate or fmShareDenyWrite);
+  try
+    slbuf.SaveToStream(fs, aEncoding);
+  finally
+    fs.Free;
+  end;
+
+  if FileExists(FileName) then
+    ShowMessage('已保存')
+  else
+    ShowMessage('保存未成功，请重试');
+end;
+
 procedure GetUninstallRegistrys(out RegKVPairs: TList<TregPair>);
 var
 
@@ -91,8 +139,9 @@ begin
   RegKVPairs := TList<TregPair>.Create;
 
   for keyrootI in [HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER] do
-    for regacc in [KEY_ALL_ACCESS or KEY_WOW64_32KEY, KEY_ALL_ACCESS or
-      KEY_WOW64_64KEY] do
+    for regacc in [
+    { 32位注册表 } KEY_READ or KEY_WOW64_32KEY or KEY_QUERY_VALUE,
+    { 64位注册表 } KEY_READ or KEY_WOW64_64KEY or KEY_QUERY_VALUE] do
       with TRegistry.Create do
         try
           Access := regacc;
@@ -117,32 +166,31 @@ begin
               regKVPair := TDictionary<string, string>.Create;
               with regKVPair do
               begin
-                // Assert(not ReadString('DisplayName').Contains('火绒'));
-                { 显示名 } add('DisplayName', ReadString('DisplayName'));
-                { 发布者 } add('Publisher', ReadString('Publisher'));
-                { 软件版本 } add('DisplayVersion', ReadString('DisplayVersion'));
+                { 显示名 } Add('DisplayName', ReadString('DisplayName'));
+                { 发布者 } Add('Publisher', ReadString('Publisher'));
+                { 软件版本 } Add('DisplayVersion', ReadString('DisplayVersion'));
                 { 安装时间 } regkeyFInstallDate := ReadString('InstallDate').Trim;
                 with rgxMatchInstallDate.Match(regkeyFInstallDate) do
                   if Success then
-                    add('InstallDate', Format('%s年%s月%s日', [
+                    Add('InstallDate', Format('%s年%s月%s日', [
                       { 年 } Groups[1].Value,
                       { 月 } Groups[2].Value,
                       { 日 } Groups[3].Value]))
                   else
-                    add('InstallDate', regkeyFInstallDate);
-                { 卸载字符串 } add('UninstallString', ReadString('UninstallString'));
+                    Add('InstallDate', regkeyFInstallDate);
+                { 卸载字符串 } Add('UninstallString', ReadString('UninstallString'));
                 { 注册表路径 }
                 case keyrootI of
                   HKEY_CURRENT_USER:
-                    add('RegistryPath', Format('HKCU\%s\%s',
+                    Add('RegistryPath', Format('HKCU\%s\%s',
                       [ragpath, keyname]));
                   HKEY_LOCAL_MACHINE:
-                    add('RegistryPath', Format('HKLM\%s\%s',
+                    Add('RegistryPath', Format('HKLM\%s\%s',
                       [ragpath, keyname]));
                 end;
 
               end;
-              RegKVPairs.add(regKVPair);
+              RegKVPairs.Add(regKVPair);
             end;
           end;
 
@@ -161,7 +209,7 @@ begin
   for regpair in oldRegList do
   begin
     if aRegFilter(regpair) then
-      newRegList.add(regpair);
+      newRegList.Add(regpair);
   end;
 end;
 
@@ -176,14 +224,14 @@ begin
   aListView.Clear;
 
   for kvpair in RegKVPairs do
-    with aListView.Items.add do
+    with aListView.Items.Add do
     begin
       Caption := kvpair['DisplayName'];
-      SubItems.add(kvpair['Publisher']);
-      SubItems.add(kvpair['DisplayVersion']);
-      SubItems.add(kvpair['InstallDate']);
-      SubItems.add(kvpair['UninstallString']);
-      SubItems.add(kvpair['RegistryPath']);
+      SubItems.Add(kvpair['Publisher']);
+      SubItems.Add(kvpair['DisplayVersion']);
+      SubItems.Add(kvpair['InstallDate']);
+      SubItems.Add(kvpair['UninstallString']);
+      SubItems.Add(kvpair['RegistryPath']);
     end;
 
   aListView.Items.EndUpdate;
@@ -311,6 +359,18 @@ begin
     lsvMainListShow.CustomSort(nil, SortColumn);
 end;
 
+procedure TMainForm.btnExportCSVClick(Sender: TObject);
+begin
+  if dlgSaveExport.Execute then
+
+    case dlgSaveExport.FilterIndex of
+      1:
+        WriteCSVFile(dlgSaveExport.FileName, TEncoding.GetEncoding('GBK'));
+      2:
+        WriteCSVFile(dlgSaveExport.FileName, TEncoding.GetEncoding('UTF8'));
+    end;
+end;
+
 procedure TMainForm.btnClearClick(Sender: TObject);
 begin
   edtInput.Clear;
@@ -324,17 +384,6 @@ begin
     chr(VK_RETURN):
       btnExeQueryClick(Sender);
   end;
-end;
-
-procedure TMainForm.FormCreate(Sender: TObject);
-var
-  newRegKVPairs: TList<TregPair>;
-begin
-  GetUninstallRegistrys(RegKVPairs);
-  FilterUninstallRegistrys(RegKVPairs, newRegKVPairs, TestWinSysSw);
-  RegKVPairsWhereShow := newRegKVPairs;
-  RefreshListViewShoW(lsvMainListShow, RegKVPairsWhereShow);
-  stuMainBar.SimpleText := Format('Total: %d', [lsvMainListShow.Items.Count]);
 end;
 
 procedure TMainForm.lsvMainListShowColumnClick(Sender: TObject;
@@ -357,10 +406,10 @@ begin
   begin
 
     showonlist := TList<string>.Create;
-    showonlist.add(Selected.Caption);
+    showonlist.Add(Selected.Caption);
 
     for i in (Sender as TListView).Selected.SubItems do
-      showonlist.add(i);
+      showonlist.Add(i);
 
     with TdlgRegKeyInfos.Create(MainForm, //
       ['显示名', '发布者', '软件版本', '安装时间', '卸载字符串', '注册表路径'], //
@@ -384,6 +433,17 @@ begin
 
   if UseDescending then
     Compare := -Compare;
+end;
+
+procedure TMainForm.FormCreate(Sender: TObject);
+var
+  newRegKVPairs: TList<TregPair>;
+begin
+  GetUninstallRegistrys(RegKVPairs);
+  FilterUninstallRegistrys(RegKVPairs, newRegKVPairs, TestWinSysSw);
+  RegKVPairsWhereShow := newRegKVPairs;
+  RefreshListViewShoW(lsvMainListShow, RegKVPairsWhereShow);
+  stuMainBar.SimpleText := Format('Total: %d', [lsvMainListShow.Items.Count]);
 end;
 
 end.

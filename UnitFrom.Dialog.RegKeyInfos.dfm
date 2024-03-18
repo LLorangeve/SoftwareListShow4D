@@ -11,7 +11,7 @@ object dlgRegKeyInfos: TdlgRegKeyInfos
   Font.Name = 'Segoe UI'
   Font.Style = []
   TextHeight = 15
-  object ListView1: TListView
+  object lsvMainKVShow: TListView
     Left = 0
     Top = 0
     Width = 460
@@ -26,7 +26,17 @@ object dlgRegKeyInfos: TdlgRegKeyInfos
         AutoSize = True
         Caption = 'Value'
       end>
+    RowSelect = True
+    PopupMenu = pupCopy
     TabOrder = 0
     ViewStyle = vsReport
+  end
+  object pupCopy: TPopupMenu
+    Left = 352
+    Top = 32
+    object pupItemCopy: TMenuItem
+      Caption = #22797#21046
+      OnClick = pupItemCopyClick
+    end
   end
 end

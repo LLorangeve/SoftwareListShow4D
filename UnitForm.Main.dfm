@@ -150,6 +150,13 @@ object MainForm: TMainForm
       Align = alRight
       Caption = #23548#20986
       TabOrder = 6
+      OnClick = btnExportCSVClick
     end
+  end
+  object dlgSaveExport: TSaveDialog
+    FileName = 'SoftwareUninstallListOnRegistry.csv'
+    Filter = 'CSV(GBK)|*.csv|CSV(UTF-8)|*.csv'
+    Left = 648
+    Top = 48
   end
 end

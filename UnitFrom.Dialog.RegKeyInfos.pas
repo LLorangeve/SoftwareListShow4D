@@ -4,15 +4,19 @@ interface
 
 uses
   System.Generics.Collections,
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  Winapi.Windows, Winapi.Messages, Vcl.Clipbrd,
+  System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Menus;
 
 type
   TdlgRegKeyInfos = class(TForm)
-    ListView1: TListView;
+    lsvMainKVShow: TListView;
+    pupCopy: TPopupMenu;
+    pupItemCopy: TMenuItem;
     constructor Create(AOwner: TComponent; FieldNames: array of string;
       params: TList<string>);
+    procedure pupItemCopyClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -42,11 +46,20 @@ begin
   end;
 
   for i := Low(FieldNames) to High(FieldNames) do
-    with ListView1.Items.Add do
+    with lsvMainKVShow.Items.Add do
     begin
       Caption := FieldNames[i];
       SubItems.Add(params[i]);
     end;
+
+end;
+
+procedure TdlgRegKeyInfos.pupItemCopyClick(Sender: TObject);
+begin
+
+  with TClipboard.Create, Sender as TMenuItem do
+    AsText := ((GetParentMenu as TPopupMenu).PopupComponent as TListView)
+      .Selected.SubItems[0];
 
 end;
 
