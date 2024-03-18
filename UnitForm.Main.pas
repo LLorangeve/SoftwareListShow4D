@@ -354,9 +354,11 @@ begin
         Result := false;
     end);
 
-  RefreshListViewShoW(lsvMainListShow, newRegKVPairs);
   if SortColumn <> -1 then
     lsvMainListShow.CustomSort(nil, SortColumn);
+
+  RefreshListViewShoW(lsvMainListShow, newRegKVPairs);
+  stuMainBar.SimpleText := Format('Total: %d', [lsvMainListShow.Items.Count]);
 end;
 
 procedure TMainForm.btnExportCSVClick(Sender: TObject);
@@ -374,7 +376,8 @@ end;
 procedure TMainForm.btnClearClick(Sender: TObject);
 begin
   edtInput.Clear;
-  RefreshListViewShoW(lsvMainListShow, RegKVPairs);
+  RefreshListViewShoW(lsvMainListShow, RegKVPairsWhereShow);
+  stuMainBar.SimpleText := Format('Total: %d', [RegKVPairsWhereShow.Count]);
 end;
 
 procedure TMainForm.edtInputKeyPress(Sender: TObject; var Key: Char);
@@ -394,7 +397,6 @@ begin
 
   SortColumn := Column.Index;
   UseDescending := not UseDescending;
-
 end;
 
 procedure TMainForm.lsvMainListShowDblClick(Sender: TObject);
