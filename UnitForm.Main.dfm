@@ -54,8 +54,6 @@ object MainForm: TMainForm
     OnColumnClick = lsvMainListShowColumnClick
     OnCompare = lsvMainListShowCompare
     OnDblClick = lsvMainListShowDblClick
-    ExplicitWidth = 661
-    ExplicitHeight = 460
   end
   object stuMainBar: TStatusBar
     Left = 0
@@ -64,8 +62,7 @@ object MainForm: TMainForm
     Height = 19
     Panels = <>
     SimplePanel = True
-    ExplicitTop = 485
-    ExplicitWidth = 661
+    ExplicitTop = 518
   end
   object pnlMainBar: TPanel
     Left = 0
@@ -75,7 +72,6 @@ object MainForm: TMainForm
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 2
-    ExplicitWidth = 661
     object btnExeQuery: TButton
       Left = 243
       Top = 0
@@ -85,9 +81,6 @@ object MainForm: TMainForm
       Caption = #25628#32034
       TabOrder = 0
       OnClick = btnExeQueryClick
-      ExplicitLeft = 244
-      ExplicitTop = 1
-      ExplicitHeight = 23
     end
     object btnClear: TButton
       Left = 309
@@ -98,9 +91,6 @@ object MainForm: TMainForm
       Caption = #28165#29702
       TabOrder = 1
       OnClick = btnClearClick
-      ExplicitLeft = 310
-      ExplicitTop = 1
-      ExplicitHeight = 23
     end
     object chkWinSysSw: TCheckBox
       Left = 384
@@ -113,9 +103,6 @@ object MainForm: TMainForm
       State = cbChecked
       TabOrder = 2
       OnClick = chkWinSysSwClick
-      ExplicitLeft = 385
-      ExplicitTop = 1
-      ExplicitHeight = 23
     end
     object edtInput: TEdit
       Left = 0
@@ -129,8 +116,6 @@ object MainForm: TMainForm
       TabOrder = 3
       TextHint = #35831#36755#20837#25628#32034#39033
       OnKeyPress = edtInputKeyPress
-      ExplicitLeft = 1
-      ExplicitTop = 1
       ExplicitHeight = 23
     end
     object chkRegHKCU: TCheckBox
@@ -144,9 +129,6 @@ object MainForm: TMainForm
       State = cbChecked
       TabOrder = 4
       OnClick = chkHKCU_HKLM_Click
-      ExplicitLeft = 561
-      ExplicitTop = 1
-      ExplicitHeight = 23
     end
     object chkRegHKLM: TCheckBox
       Left = 502
@@ -159,9 +141,6 @@ object MainForm: TMainForm
       State = cbChecked
       TabOrder = 5
       OnClick = chkHKCU_HKLM_Click
-      ExplicitLeft = 503
-      ExplicitTop = 1
-      ExplicitHeight = 23
     end
     object btnExportCSV: TButton
       Left = 617
@@ -171,8 +150,6 @@ object MainForm: TMainForm
       Align = alRight
       Caption = #23548#20986
       TabOrder = 6
-      ExplicitLeft = 648
-      ExplicitTop = 8
     end
   end
 end
